@@ -1,0 +1,99 @@
+if myHero.charName ~= "Ryze" then return end
+
+local version = 0.1
+local target = nil
+local config = scriptConfig("Ryze, the Master of Magic!", "ryzeSettings")
+
+local skillQ = {name = "Overload", range = 600}
+local skillW = {name = "Rune Prison", range = 600}
+local skillE = {name = "Spell Flux", range = 600}
+local skillR = {name = "Desperate Power"}
+
+function OnLoad()
+	targetSelector = TargetSelector(TARGET_LESS_CAST_PRIORITY, skillQ.range, DAMAGE_MAGIC, true)
+	targetSelector.name = "Ryze"
+	config:addTS(targetSelector)
+	
+	menu()
+end
+
+function OnTick()
+	targetSelector:update()
+	
+	target = targetSelector.target
+	
+	if config.basicSubMenu.combo then combo() end
+	if config.otherrSubMenu.moveToMouse and config.basicSubMenu.combo then moveToMouse() end
+	if config.basicSubMenu.Harass then Harass() end
+	if config.otherSubMenu.moveToMouse and config.basicSubMenu.Harass then moveToMouse() end
+	end
+
+function OnDraw()
+
+end
+
+function combo()
+	if target ~= nil then
+		if config.basicSubMenu.combo then
+			if config.comboSubMenu.comboQ then
+				CastSpell(_Q, target)
+			end
+			
+			if config.comboSubMenu.comboW then
+				CastSpell(_W, target)
+			end
+			
+			if config.comboSubMenu.comboE then
+				CastSpell(_E, target)
+			end
+			
+			if config.comboSubMenu.comboR then
+				CastSpell(_R, target)
+			end
+		end
+	end
+end
+
+function Harass()
+	if target ~= nil then
+		if config.basicSubMenu.Harass then
+			if config.HarassSubMenu.HarassQ then
+				CastSpell(_Q, target)
+			end
+				
+			if config.HarassSubMenu.HarassE then
+				CastSpell(_E, target) 
+				
+			end
+		end
+	end
+end
+		
+			
+
+function moveToMouse()
+	if config.otherSubMenu.moveToMouse then
+		myHero:MoveTo(mousePos.x, mousePos.z)
+		
+	end
+end
+
+function menu()
+	config:addSubMenu("Basic settings", "basicSubMenu")
+	config.basicSubMenu:addParam("combo", "Use combo", SCRIPT_PARAM_ONKEYDOWN, false, GetKey(" "))
+	config.basicSubMenu:addParam("Harass", "Use harass", SCRIPT_PARAM_ONKEYDOWN, false, GetKey("C")) 
+	config.basicSubMenu:addParam("version", "Version:", SCRIPT_PARAM_INFO, version)
+	
+	config:addSubMenu("Combo settings", "comboSubMenu")
+	config.comboSubMenu:addParam("comboQ", "Use "..skillQ.name, SCRIPT_PARAM_ONOFF, false)
+	config.comboSubMenu:addParam("comboW", "Use "..skillW.name, SCRIPT_PARAM_ONOFF, false)
+	config.comboSubMenu:addParam("comboE", "Use "..skillE.name, SCRIPT_PARAM_ONOFF, false)
+	config.comboSubMenu:addParam("comboR", "Use "..skillR.name, SCRIPT_PARAM_ONOFF, false)
+	
+	config:addSubMenu("Harass settings", "HarassSubMenu")
+	config.HarassSubMenu:addParam("HarassQ", "Use "..skillQ.name, SCRIPT_PARAM_ONOFF, false)
+	config.HarassSubMenu:addParam("HarassE", "Use "..skillE.name, SCRIPT_PARAM_ONOFF, false)
+	
+	config:addSubMenu("Other settings", "otherSubMenu")
+	config.otherSubMenu:addParam("moveToMouse", "Move to mouse", SCRIPT_PARAM_ONOFF, false)
+end
