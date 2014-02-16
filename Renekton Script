@@ -1,0 +1,149 @@
+if myHero.charName ~= "Renekton" then return end
+
+local version = 0.1
+local target = nil
+local lastAnimation = nil
+local lastAttack = 0
+local lastAttackCD = 0
+local lastWindUpTime = 0
+local config = scriptConfig("Renekton, the Croco!", "RenektonSettings")
+
+local skillQ = {name = "Cull the Meek", range = 325}
+local skillW = {name = "Ruthless Predator", range = 300}
+local skillE = {name = "Slice and Dice", range = 450}
+local skillR = {name = "Dominus"}
+
+function OnLoad()
+	targetSelector = TargetSelector(TARGET_NEAR_MOUSE, 1000, DAMAGE_PHYSICAL, true)
+	targetSelector.name = "Totodile"
+	config:addTS(targetSelector)
+	
+	menu()
+	print("Totodile loaded!")
+end
+
+function OnTick()
+	targetSelector:update()
+	
+	target = targetSelector.target
+	
+	if config.BasicSubMenu.Combo then Combo() end
+	if config.BasicSubMenu.Harass then Harass() end
+end
+
+	
+function Combo()
+	if target ~= nil then
+		if config.BasicSubMenu.Combo then
+		
+			if config.OtherSubMenu.AutoAttack then
+				OrbWalking(target)
+			end
+			
+			if config.ComboSubMenu.ComboQ then
+			
+			CastSpell(_Q, target)
+			end
+			
+			if config.ComboSubMenu.ComboW and GetDistance(target) < 125 then
+			CastSpell(_W, target)
+			end
+			
+			if config.ComboSubMenu.ComboE then
+			CastSpell(_E, target.x, target.z)
+			end
+			
+			if config.ComboSubMenu.ComboR then
+			CastSpell(_R)
+			end
+		end
+	end
+
+	if config.OtherSubMenu.AutoAttack and target ~= nil then
+		OrbWalking(target)
+	else 
+		moveToCursor()
+	end
+end
+
+function Harass()
+	if target ~= nil then
+		if config.BasicSubMenu.Harass then		
+			if config.HarassSubMenu.HarassQ then
+				CastSpell(_Q, target)
+			end
+			
+			if config.HarassSubMenu.HarassE then
+				CastSpell(_E, target)
+			end
+			
+			if config.HarassSubMenu.HarassW then
+				CastSpell(_W, target)
+			end
+		end
+	end
+
+	if config.OtherSubMenu.AutoAttack and target ~= nil then
+		OrbWalking(target)
+	else 
+		moveToCursor()
+	end
+end
+
+function OrbWalking(Target)
+	if TimeToAttack() and GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
+		myHero:Attack(Target)
+    elseif heroCanMove() then
+        moveToCursor()
+    end
+end
+
+function TimeToAttack()
+    return (GetTickCount() + GetLatency()/2 > lastAttack + lastAttackCD)
+end
+
+function heroCanMove()
+	return (GetTickCount() + GetLatency()/2 > lastAttack + lastWindUpTime + 20)
+end
+
+function moveToCursor()
+	if GetDistance(mousePos) then
+		local moveToPos = myHero + (Vector(mousePos) - myHero):normalized()*300
+		myHero:MoveTo(moveToPos.x, moveToPos.z)
+    end        
+end
+
+function OnProcessSpell(object,spell)
+	if object == myHero then
+		if spell.name:lower():find("attack") then
+			lastAttack = GetTickCount() - GetLatency()/2
+			lastWindUpTime = spell.windUpTime*1000
+			lastAttackCD = spell.animationTime*1000
+        end
+    end
+end
+
+function OnAnimation(unit,animationName)
+    if unit.isMe and lastAnimation ~= animationName then lastAnimation = animationName end
+end
+	
+function menu()
+	config:addSubMenu("Basic Settings", "BasicSubMenu")
+	config.BasicSubMenu:addParam("Combo", "Use Combo", SCRIPT_PARAM_ONKEYDOWN, false, GetKey(" "))
+	config.BasicSubMenu:addParam("Harass", "Use Harass", SCRIPT_PARAM_ONKEYDOWN, false, GetKey("X"))
+	config.BasicSubMenu:addParam("Version", "Version:", SCRIPT_PARAM_INFO, version)
+	
+	config:addSubMenu("Combo Settings", "ComboSubMenu")
+	config.ComboSubMenu:addParam("ComboQ", "Use "..skillQ.name, SCRIPT_PARAM_ONOFF, false)
+	config.ComboSubMenu:addParam("ComboW", "Use "..skillW.name, SCRIPT_PARAM_ONOFF, false)
+	config.ComboSubMenu:addParam("ComboE", "Use "..skillE.name, SCRIPT_PARAM_ONOFF, false)
+	config.ComboSubMenu:addParam("ComboR", "Use "..skillR.name, SCRIPT_PARAM_ONOFF, false)
+	
+	config:addSubMenu("Harass Settings", "HarassSubMenu")
+	config.HarassSubMenu:addParam("HarassQ", "Use "..skillQ.name, SCRIPT_PARAM_ONOFF, false)
+	config.HarassSubMenu:addParam("HarassE", "Use "..skillE.name, SCRIPT_PARAM_ONOFF, false)
+	config.HarassSubMenu:addParam("HarassW", "Use "..skillW.name, SCRIPT_PARAM_ONOFF, false)
+	
+	config:addSubMenu("Other Settings", "OtherSubMenu")
+	config.OtherSubMenu:addParam("AutoAttack", "Auto Attack", SCRIPT_PARAM_ONOFF, false)
+end
