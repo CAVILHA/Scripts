@@ -1,6 +1,6 @@
 if myHero.charName ~= "Renekton" then return end
 
-local version = 0.1
+local version = 0.2
 local target = nil
 local lastAnimation = nil
 local lastAttack = 0
@@ -19,7 +19,7 @@ function OnLoad()
 	config:addTS(targetSelector)
 	
 	menu()
-	print("Totodile loaded!")
+	print(">> Totodile v0.2 loaded!")
 end
 
 function OnTick()
@@ -41,7 +41,6 @@ function Combo()
 			end
 			
 			if config.ComboSubMenu.ComboQ then
-			
 			CastSpell(_Q, target)
 			end
 			
@@ -49,7 +48,7 @@ function Combo()
 			CastSpell(_W, target)
 			end
 			
-			if config.ComboSubMenu.ComboE then
+			if config.ComboSubMenu.ComboE and GetDistance(target) < 450 then
 			CastSpell(_E, target.x, target.z)
 			end
 			
@@ -73,11 +72,11 @@ function Harass()
 				CastSpell(_Q, target)
 			end
 			
-			if config.HarassSubMenu.HarassE then
+			if config.HarassSubMenu.HarassE and GetDistance(target) < 450 then
 				CastSpell(_E, target)
 			end
 			
-			if config.HarassSubMenu.HarassW then
+			if config.HarassSubMenu.HarassW and GetDistance(target) < 125 then
 				CastSpell(_W, target)
 			end
 		end
