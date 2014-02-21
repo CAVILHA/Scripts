@@ -1,148 +1,151 @@
 if myHero.charName ~= "Renekton" then return end
 
-local version = 0.2
-local target = nil
-local lastAnimation = nil
-local lastAttack = 0
-local lastAttackCD = 0
-local lastWindUpTime = 0
-local config = scriptConfig("Renekton, the Croco!", "RenektonSettings")
-
-local skillQ = {name = "Cull the Meek", range = 325}
-local skillW = {name = "Ruthless Predator", range = 300}
-local skillE = {name = "Slice and Dice", range = 450}
-local skillR = {name = "Dominus"}
-
+-- OnLoad Function --
 function OnLoad()
-	targetSelector = TargetSelector(TARGET_NEAR_MOUSE, 1000, DAMAGE_PHYSICAL, true)
-	targetSelector.name = "Totodile"
-	config:addTS(targetSelector)
+	Config = scriptConfig("Renekton v 0.3", "renekton")
+
+	TargetSelector = TargetSelector(TARGET_LESS_CAST_PRIORITY, 1000, DAMAGE_PHYSICAL)
+	TargetSelector.name = "Renekton"
+	Config:addTS(TargetSelector)
 	
-	menu()
-	print(">> Totodile v0.2 loaded!")
+	qName, wName, eName = "Cull the Meek", "Ruthless Predator", "Slice and Dice"
+
+	Config:addSubMenu("Combo", "combo")
+	Config.combo:addParam("teamfight", "Combo", SCRIPT_PARAM_ONKEYDOWN, false, GetKey("A"))
+	Config.combo:addParam("useQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
+	Config.combo:addParam("useW", "Use W", SCRIPT_PARAM_ONOFF, true)
+	Config.combo:addParam("useR", "Use R", SCRIPT_PARAM_ONOFF, false)
+	Config.combo:addParam("useHydra", "Use Hydra", SCRIPT_PARAM_ONOFF, false)
+
+	Config:addSubMenu("Harass", "harass")
+	Config.harass:addParam("poke", "Harass", SCRIPT_PARAM_ONKEYDOWN, false, GetKey("C"))
+	Config.harass:addParam("pokeToggle", "Harass (Toggle)", SCRIPT_PARAM_ONKEYTOGGLE, false, GetKey("Y"))
+	Config.harass:addParam("useQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
+	Config.harass:addParam("useW", "Use W", SCRIPT_PARAM_ONOFF, false)
+
+	Config:addSubMenu("Ultimate", "ult")
+	Config.ult:addParam("enemyCount", "Use R when X enemies in range", SCRIPT_PARAM_SLICE, 3, 1, 5, 0)
+	Config.ult:addParam("minimumHealth", "Health % to use Ultimate", SCRIPT_PARAM_SLICE, 50, 0, 100, -1)
+
+	Config:addSubMenu("Drawing Settings", "Drawing")
+	Config.Drawing:addParam("mDraw", "Disable All Drawings", SCRIPT_PARAM_ONOFF, false)
+	Config.Drawing:addParam("qDraw", "Draw "..qName.." (Q) Range", SCRIPT_PARAM_ONOFF, true)
+	Config.Drawing:addParam("wDraw", "Draw "..wName.." (W) Range", SCRIPT_PARAM_ONOFF, true)
+	Config.Drawing:addParam("eDraw", "Draw "..eName.." (E) Range", SCRIPT_PARAM_ONOFF, true)
+	Config.Drawing:addParam("LfcDraw", "Use Lagfree Circles (Reload!)", SCRIPT_PARAM_ONOFF, true)
+
+	
+	qRange = 325
+	wRange = 125
+	eRange = 450
+	
+	PrintChat("<font color='#0000FF'> >> Renekton v0.3 loaded! <<</font>")
 end
 
+-- OnTick Function --
 function OnTick()
-	targetSelector:update()
-	
-	target = targetSelector.target
-	
-	if config.BasicSubMenu.Combo then Combo() end
-	if config.BasicSubMenu.Harass then Harass() end
-end
+	TargetSelector:update()
+	Target = TargetSelector.target
 
-	
-function Combo()
-	if target ~= nil then
-		if config.BasicSubMenu.Combo then
-		
-			if config.OtherSubMenu.AutoAttack then
-				OrbWalking(target)
+	TiamatSlot,HydraSlot,BotrkSlot,CutlassSlot = GetInventorySlotItem(3077),
+												 GetInventorySlotItem(3074),
+												 GetInventorySlotItem(3153),
+												 GetInventorySlotItem(3144)
+												 
+	TiamatReady = (TiamatSlot ~= nil and myHero:CanUseSpell(TiamatSlot) == READY)
+	HydraReady = (HydraSlot ~= nil and myHero:CanUseSpell(HydraSlot) == READY)
+	BotrkReady = (BotrkSlot ~= nil and myHero:CanUseSpell(BotrkSlot) == READY)
+	CutlassReady = (CutlassSlot ~= nil and myHero:CanUseSpell(CutlassSlot) == READY)
+
+	if Config.combo.teamfight and Target ~= nil then
+		Config.harass.pokeToggle = false
+		if ValidTarget(Target) then
+			if Config.combo.useHydra then UseHydra(Target) end
+			if Config.combo.useQ and myHero:CanUseSpell(_Q) == READY and GetDistance(Target) <= qRange then
+				CastSpell(_Q)
 			end
-			
-			if config.ComboSubMenu.ComboQ then
-			CastSpell(_Q, target)
+			if Config.combo.useW and myHero:CanUseSpell(_W) == READY and GetDistance(Target) <= wRange then
+				CastSpell(_W, Target)
 			end
-			
-			if config.ComboSubMenu.ComboW and GetDistance(target) < 125 then
-			CastSpell(_W, target)
-			end
-			
-			if config.ComboSubMenu.ComboE and GetDistance(target) < 450 then
-			CastSpell(_E, target.x, target.z)
-			end
-			
-			if config.ComboSubMenu.ComboR then
-			CastSpell(_R)
+			if Config.combo.useR and myHero:CanUseSpell(_R) == READY and GetDistance(Target) <= 500 then
+				if CountEnemyHeroInRange(500) >= Config.ult.enemyCount and myHero.health < (myHero.maxHealth * (Config.ult.minimumHealth / 100)) then
+					CastSpell(_R)
+				end
 			end
 		end
 	end
 
-	if config.OtherSubMenu.AutoAttack and target ~= nil then
-		OrbWalking(target)
-	else 
-		moveToCursor()
-	end
-end
-
-function Harass()
-	if target ~= nil then
-		if config.BasicSubMenu.Harass then		
-			if config.HarassSubMenu.HarassQ then
-				CastSpell(_Q, target)
+	if (Config.harass.poke or Config.harass.pokeToggle) then
+		if ValidTarget(Target) then
+			if Config.harass.useQ and myHero:CanUseSpell(_Q) == READY and GetDistance(Target) <= qRange then
+				CastSpell(_Q)
 			end
-			
-			if config.HarassSubMenu.HarassE and GetDistance(target) < 450 then
-				CastSpell(_E, target)
-			end
-			
-			if config.HarassSubMenu.HarassW and GetDistance(target) < 125 then
-				CastSpell(_W, target)
+			if Config.harass.useW and myHero:CanUseSpell(_W) == READY and GetDistance(Target) <= wRange then
+				CastSpell(_W, Target)
 			end
 		end
 	end
 
-	if config.OtherSubMenu.AutoAttack and target ~= nil then
-		OrbWalking(target)
-	else 
-		moveToCursor()
+end
+
+-- Items Function --
+function UseHydra(enemy)
+	if not enemy then
+		enemy = Target
+	end
+	if Target ~= nil then
+		if TiamatReady and GetDistance(enemy) <= 350 then CastSpell(TiamatSlot, enemy) end
+		if HydraReady and GetDistance(enemy) <= 350 then CastSpell(HydraSlot, enemy) end
 	end
 end
 
-function OrbWalking(Target)
-	if TimeToAttack() and GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
-		myHero:Attack(Target)
-    elseif heroCanMove() then
-        moveToCursor()
+-- Drawings --
+function OnDraw()
+	if not Config.Drawing.mDraw and not myHero.dead then
+		if myHero:CanUseSpell(_Q) == READY and Config.Drawing.qDraw then
+			DrawCircle(myHero.x, myHero.y, myHero.z, qRange, ARGB(255,127,0,110))
+		end
+		if myHero:CanUseSpell(_W) == READY and Config.Drawing.wDraw then
+			DrawCircle(myHero.x, myHero.y, myHero.z, wRange, ARGB(255,95,159,159))
+		end
+		if myHero:CanUseSpell(_E) == READY and Config.Drawing.eDraw then
+			DrawCircle(myHero.x, myHero.y, myHero.z, eRange, ARGB(255,204,50,50))
+		end
+	end
+end
+
+-- Lagfree Circles --
+function DrawCircleNextLvl(x, y, z, radius, width, color, chordlength)
+    radius = radius or 300
+		quality = math.max(8,round(180/math.deg((math.asin((chordlength/(2*radius)))))))
+		quality = 2 * math.pi / quality
+		radius = radius*.92
+    local points = {}
+    for theta = 0, 2 * math.pi + quality, quality do
+        local c = WorldToScreen(D3DXVECTOR3(x + radius * math.cos(theta), y, z - radius * math.sin(theta)))
+        points[#points + 1] = D3DXVECTOR2(c.x, c.y)
+    end
+    DrawLines2(points, width or 1, color or 4294967295)
+end
+
+function round(num) 
+	if num >= 0 then return math.floor(num+.5) else return math.ceil(num-.5) end
+end
+
+function DrawCircle2(x, y, z, radius, color)
+    local vPos1 = Vector(x, y, z)
+    local vPos2 = Vector(cameraPos.x, cameraPos.y, cameraPos.z)
+    local tPos = vPos1 - (vPos1 - vPos2):normalized() * radius
+    local sPos = WorldToScreen(D3DXVECTOR3(tPos.x, tPos.y, tPos.z))
+    if OnScreen({ x = sPos.x, y = sPos.y }, { x = sPos.x, y = sPos.y }) then
+        DrawCircleNextLvl(x, y, z, radius, 1, color, 75)	
     end
 end
 
-function TimeToAttack()
-    return (GetTickCount() + GetLatency()/2 > lastAttack + lastAttackCD)
-end
-
-function heroCanMove()
-	return (GetTickCount() + GetLatency()/2 > lastAttack + lastWindUpTime + 20)
-end
-
-function moveToCursor()
-	if GetDistance(mousePos) then
-		local moveToPos = myHero + (Vector(mousePos) - myHero):normalized()*300
-		myHero:MoveTo(moveToPos.x, moveToPos.z)
-    end        
-end
-
-function OnProcessSpell(object,spell)
-	if object == myHero then
-		if spell.name:lower():find("attack") then
-			lastAttack = GetTickCount() - GetLatency()/2
-			lastWindUpTime = spell.windUpTime*1000
-			lastAttackCD = spell.animationTime*1000
-        end
-    end
-end
-
-function OnAnimation(unit,animationName)
-    if unit.isMe and lastAnimation ~= animationName then lastAnimation = animationName end
-end
-	
-function menu()
-	config:addSubMenu("Basic Settings", "BasicSubMenu")
-	config.BasicSubMenu:addParam("Combo", "Use Combo", SCRIPT_PARAM_ONKEYDOWN, false, GetKey(" "))
-	config.BasicSubMenu:addParam("Harass", "Use Harass", SCRIPT_PARAM_ONKEYDOWN, false, GetKey("X"))
-	config.BasicSubMenu:addParam("Version", "Version:", SCRIPT_PARAM_INFO, version)
-	
-	config:addSubMenu("Combo Settings", "ComboSubMenu")
-	config.ComboSubMenu:addParam("ComboQ", "Use "..skillQ.name, SCRIPT_PARAM_ONOFF, false)
-	config.ComboSubMenu:addParam("ComboW", "Use "..skillW.name, SCRIPT_PARAM_ONOFF, false)
-	config.ComboSubMenu:addParam("ComboE", "Use "..skillE.name, SCRIPT_PARAM_ONOFF, false)
-	config.ComboSubMenu:addParam("ComboR", "Use "..skillR.name, SCRIPT_PARAM_ONOFF, false)
-	
-	config:addSubMenu("Harass Settings", "HarassSubMenu")
-	config.HarassSubMenu:addParam("HarassQ", "Use "..skillQ.name, SCRIPT_PARAM_ONOFF, false)
-	config.HarassSubMenu:addParam("HarassE", "Use "..skillE.name, SCRIPT_PARAM_ONOFF, false)
-	config.HarassSubMenu:addParam("HarassW", "Use "..skillW.name, SCRIPT_PARAM_ONOFF, false)
-	
-	config:addSubMenu("Other Settings", "OtherSubMenu")
-	config.OtherSubMenu:addParam("AutoAttack", "Auto Attack", SCRIPT_PARAM_ONOFF, false)
+-- Checks --
+function Checks()
+-- LagFree Circles --
+	if Config.Drawing.LfcDraw then
+		_G.DrawCircle = DrawCircle2
+	end
 end
