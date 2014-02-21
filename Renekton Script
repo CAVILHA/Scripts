@@ -1,3 +1,6 @@
+-- USE THIS SCRIPT TOGETHER WITH MMA/REBORN/Revamped!!!!!!!!!!!! --
+-- SEE THE CHANGELOG IN THE FORUM!!!! --
+
 if myHero.charName ~= "Renekton" then return end
 
 -- OnLoad Function --
